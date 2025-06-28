@@ -15,7 +15,6 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
 
     companion object {
         private const val WEB_VIDEO_CASTER_PACKAGE = "com.instantbits.cast.webvideo"
-        private const val WEB_VIDEO_CASTER_ACTIVITY = "com.instantbits.cast.webvideo.VideoCasterReceiverActivity"
     }
 
     override fun getName(): String {
@@ -32,22 +31,15 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
     }
 
     private fun createWebVideoCasterIntent(videoURL: String, mimeType: String? = null): Intent {
-        return Intent().apply {
-            action = Intent.ACTION_VIEW
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            setDataAndType(Uri.parse(videoURL), mimeType ?: "video/*")
-            setPackage(WEB_VIDEO_CASTER_PACKAGE)
-        }
+        // Create intent exactly as shown in official documentation
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(Uri.parse(videoURL), mimeType ?: "video/*")
+        intent.setPackage(WEB_VIDEO_CASTER_PACKAGE)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        return intent
     }
 
-    private fun createWebVideoCasterIntentWithActivity(videoURL: String, mimeType: String? = null): Intent {
-        return Intent().apply {
-            action = Intent.ACTION_VIEW
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            setDataAndType(Uri.parse(videoURL), mimeType ?: "video/*")
-            setClassName(WEB_VIDEO_CASTER_PACKAGE, WEB_VIDEO_CASTER_ACTIVITY)
-        }
-    }
+
 
     private fun openPlayStore() {
         try {
@@ -73,30 +65,29 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             throw IllegalArgumentException("videoURL is required")
         }
 
-        // Check if Web Video Caster is installed
-        if (!isWebVideoCasterInstalled()) {
-            openPlayStore()
-            return
-        }
-
         val intent = createWebVideoCasterIntent(videoURL, options.getString("mimeType"))
 
-        // Add headers if provided
+        // Add headers if provided - Web Video Caster expects JSON string format
         if (options.hasKey("headers")) {
             val headersMap = options.getMap("headers")
             if (headersMap != null) {
-                val headersList = mutableListOf<String>()
+                // Convert to JSON string like the working SendIntentAndroid example
+                val headersJson = StringBuilder("{")
                 val iterator = headersMap.keySetIterator()
+                var first = true
                 while (iterator.hasNextKey()) {
                     val key = iterator.nextKey()
                     val value = headersMap.getString(key)
                     if (value != null) {
-                        headersList.add(key)
-                        headersList.add(value)
+                        if (!first) headersJson.append(",")
+                        headersJson.append("\"$key\":\"$value\"")
+                        first = false
                     }
                 }
-                if (headersList.isNotEmpty()) {
-                    intent.putExtra("headers", headersList.toTypedArray())
+                headersJson.append("}")
+                
+                if (!first) { // Only add if we have headers
+                    intent.putExtra("headers", headersJson.toString())
                 }
             }
         }
@@ -111,38 +102,15 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             intent.putExtra("poster", options.getString("posterURL"))
         }
 
-        // Add subtitles if provided
+        // Add subtitles if provided - use official format (single subtitle)
         if (options.hasKey("subtitles")) {
             val subtitlesArray = options.getArray("subtitles")
             if (subtitlesArray != null && subtitlesArray.size() > 0) {
-                val subtitleUris = mutableListOf<String>()
-                val subtitleNames = mutableListOf<String>()
-                val enabledSubtitles = mutableListOf<String>()
-
-                for (i in 0 until subtitlesArray.size()) {
-                    val subtitle = subtitlesArray.getMap(i)
-                    if (subtitle != null) {
-                        val url = subtitle.getString("url")
-                        if (url != null) {
-                            subtitleUris.add(url)
-                            
-                            // Add subtitle name
-                            val name = subtitle.getString("name") ?: subtitle.getString("language") ?: "Subtitle ${i + 1}"
-                            subtitleNames.add(name)
-                            
-                            // Check if this subtitle should be enabled
-                            if (subtitle.hasKey("enabled") && subtitle.getBoolean("enabled")) {
-                                enabledSubtitles.add(url)
-                            }
-                        }
-                    }
-                }
-
-                if (subtitleUris.isNotEmpty()) {
-                    intent.putExtra("subs", subtitleUris.toTypedArray())
-                    intent.putExtra("subs.name", subtitleNames.toTypedArray())
-                    if (enabledSubtitles.isNotEmpty()) {
-                        intent.putExtra("subs.enable", enabledSubtitles.toTypedArray())
+                val subtitle = subtitlesArray.getMap(0) // Use first subtitle as per official docs
+                if (subtitle != null) {
+                    val url = subtitle.getString("url")
+                    if (url != null) {
+                        intent.putExtra("subtitle", url)
                     }
                 }
             }
@@ -153,17 +121,8 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             intent.putExtra("position", options.getInt("position"))
         }
 
-        // Add User-Agent if provided (through headers)
-        if (options.hasKey("userAgent")) {
-            val userAgent = options.getString("userAgent")
-            if (userAgent != null) {
-                // Add User-Agent to headers
-                val existingHeaders = intent.getStringArrayExtra("headers")?.toMutableList() ?: mutableListOf()
-                existingHeaders.add("User-Agent")
-                existingHeaders.add(userAgent)
-                intent.putExtra("headers", existingHeaders.toTypedArray())
-            }
-        }
+        // Note: User-Agent should be included in the headers object, not as a separate extra
+        // This is now handled in the headers section above
 
         // Add file size if provided
         if (options.hasKey("size")) {
@@ -188,42 +147,21 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
         try {
             reactApplicationContext.startActivity(intent)
         } catch (ex: ActivityNotFoundException) {
-            // Try with specific activity class name as fallback
-            try {
-                val activityIntent = createWebVideoCasterIntentWithActivity(videoURL, options.getString("mimeType"))
-                // Copy all the extras from the original intent
-                activityIntent.putExtras(intent.extras ?: Bundle())
-                reactApplicationContext.startActivity(activityIntent)
-            } catch (ex2: ActivityNotFoundException) {
-                // If both approaches fail, open Play Store
-                openPlayStore()
-            }
+            // Open Play Store if it fails to launch the app because the package doesn't exist
+            openPlayStore()
         }
     }
 
     @ReactMethod
     fun play(videoURL: String) {
         // Backward compatibility method
-        
-        // Check if Web Video Caster is installed
-        if (!isWebVideoCasterInstalled()) {
-            openPlayStore()
-            return
-        }
-
         val intent = createWebVideoCasterIntent(videoURL)
 
         try {
             reactApplicationContext.startActivity(intent)
         } catch (ex: ActivityNotFoundException) {
-            // Try with specific activity class name as fallback
-            try {
-                val activityIntent = createWebVideoCasterIntentWithActivity(videoURL)
-                reactApplicationContext.startActivity(activityIntent)
-            } catch (ex2: ActivityNotFoundException) {
-                // If both approaches fail, open Play Store
-                openPlayStore()
-            }
+            // Open Play Store if it fails to launch the app because the package doesn't exist
+            openPlayStore()
         }
     }
 

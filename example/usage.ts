@@ -48,11 +48,11 @@ class VideoPlayerService {
       headers: {
         Authorization: "Bearer your-token-here",
         Referer: "https://your-site.com",
+        "User-Agent": "MyApp/1.0", // Include User-Agent in headers for better compatibility
       },
       subtitles: subtitles,
       hideVideoAddress: true,
       position: 30000, // Start at 30 seconds
-      userAgent: "MyApp/1.0",
       size: 1024000000, // 1GB file size
       filename: "movie.mp4",
       suppressErrorMessage: false,

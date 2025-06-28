@@ -169,17 +169,23 @@ Advanced method with full feature support.
 ```typescript
 const options: WebVideoCasterOptions = {
   videoURL: "https://secure.example.com/video.mp4",
+  title: "Protected Content",
   headers: {
     Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "X-API-Key": "your-api-key",
     Referer: "https://your-app.com",
+    "User-Agent": "MyApp/1.0",
+    Cookie: "session=abc123; auth=xyz789",
   },
 };
+
+RNWebVideoCaster.playVideo(options);
 ```
 
-### 🌍 Multi-language Content
+### 🌍 Subtitle Support
 
 ```typescript
+// Note: Web Video Caster currently supports one subtitle track per video
 const subtitles: SubtitleTrack[] = [
   {
     url: "https://example.com/subs/en.vtt",
@@ -188,13 +194,15 @@ const subtitles: SubtitleTrack[] = [
     mimeType: "text/vtt",
     enabled: true,
   },
-  {
-    url: "https://example.com/subs/es.srt",
-    language: "es",
-    name: "Español",
-    mimeType: "application/x-subrip",
-  },
 ];
+
+const options: WebVideoCasterOptions = {
+  videoURL: "https://example.com/movie.mp4",
+  title: "Movie with Subtitles",
+  subtitles: subtitles,
+};
+
+RNWebVideoCaster.playVideo(options);
 ```
 
 ### 📺 Professional Video Presentations
@@ -255,6 +263,60 @@ RNWebVideoCaster.playVideo(streamOptions);
 - **Android**: API level 16 (Android 4.1) or higher
 - **Web Video Caster App**: Available on Google Play Store
 - **TypeScript**: 4.9.0 or higher (for TypeScript projects)
+
+---
+
+## 🛠️ Troubleshooting
+
+### App Opens Play Store Instead of Web Video Caster
+
+If the module opens the Play Store instead of the Web Video Caster app, try:
+
+1. **Check if the app is installed**:
+
+   ```typescript
+   RNWebVideoCaster.isAppInstalled((isInstalled) => {
+     console.log("Web Video Caster installed:", isInstalled);
+   });
+   ```
+
+2. **Test with a simple video first**:
+
+   ```typescript
+   RNWebVideoCaster.play(
+     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+   );
+   ```
+
+3. **Verify your video URL is accessible** - try opening it in a browser first
+
+### Headers Not Working
+
+Ensure headers are passed correctly as an object (the module will convert them to JSON internally):
+
+```typescript
+// ✅ Correct - Pass headers as object
+const options = {
+  videoURL: "your-video-url",
+  headers: {
+    Authorization: "Bearer token",
+    Referer: "https://yoursite.com",
+    "User-Agent": "MyApp/1.0", // Include User-Agent here, not as separate property
+  },
+};
+
+// ❌ Incorrect - Don't stringify manually
+const options = {
+  videoURL: "your-video-url",
+  headers: JSON.stringify({ Authorization: "Bearer token" }), // Don't stringify!
+};
+
+// ❌ Incorrect - Don't use separate userAgent property
+const options = {
+  videoURL: "your-video-url",
+  userAgent: "MyApp/1.0", // Use headers['User-Agent'] instead
+};
+```
 
 ---
 

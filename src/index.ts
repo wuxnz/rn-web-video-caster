@@ -40,6 +40,7 @@ export interface WebVideoCasterOptions {
 
   /**
    * Custom User-Agent string
+   * @deprecated Use headers['User-Agent'] instead for better compatibility
    */
   userAgent?: string;
 
