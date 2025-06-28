@@ -10,6 +10,7 @@ import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 
 class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -121,8 +122,24 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             intent.putExtra("position", options.getInt("position"))
         }
 
-        // Note: User-Agent should be included in the headers object, not as a separate extra
-        // This is now handled in the headers section above
+        // Handle deprecated userAgent property for backward compatibility
+        if (options.hasKey("userAgent")) {
+            val userAgent = options.getString("userAgent")
+            if (userAgent != null) {
+                // Check if headers already exist and add User-Agent if not already present
+                val existingHeaders = intent.getStringExtra("headers")
+                if (existingHeaders != null) {
+                    // Parse existing JSON and add User-Agent if not present
+                    if (!existingHeaders.contains("User-Agent")) {
+                        val updatedHeaders = existingHeaders.dropLast(1) + ",\"User-Agent\":\"$userAgent\"}"
+                        intent.putExtra("headers", updatedHeaders)
+                    }
+                } else {
+                    // No existing headers, create new JSON with just User-Agent
+                    intent.putExtra("headers", "{\"User-Agent\":\"$userAgent\"}")
+                }
+            }
+        }
 
         // Add file size if provided
         if (options.hasKey("size")) {
@@ -144,10 +161,22 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             intent.putExtra("suppress_error_message", true)
         }
 
+        // Debug logging
+        Log.d("RNWebVideoCaster", "Attempting to launch Web Video Caster with intent:")
+        Log.d("RNWebVideoCaster", "Package: ${intent.`package`}")
+        Log.d("RNWebVideoCaster", "Data: ${intent.data}")
+        Log.d("RNWebVideoCaster", "Type: ${intent.type}")
+        Log.d("RNWebVideoCaster", "Extras: ${intent.extras}")
+        
         try {
             reactApplicationContext.startActivity(intent)
+            Log.d("RNWebVideoCaster", "Successfully launched Web Video Caster")
         } catch (ex: ActivityNotFoundException) {
+            Log.e("RNWebVideoCaster", "Web Video Caster not found, opening Play Store", ex)
             // Open Play Store if it fails to launch the app because the package doesn't exist
+            openPlayStore()
+        } catch (ex: Exception) {
+            Log.e("RNWebVideoCaster", "Unexpected error launching Web Video Caster", ex)
             openPlayStore()
         }
     }

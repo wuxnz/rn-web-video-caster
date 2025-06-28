@@ -1,6 +1,6 @@
 {
   "name": "rn-web-video-caster",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Enhanced React Native module for Web Video Caster integration with TypeScript and advanced casting features",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

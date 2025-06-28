@@ -2,7 +2,7 @@ import RNWebVideoCaster, {
   RNWebVideoCasterInterface,
   WebVideoCasterOptions,
   SubtitleTrack,
-} from "rn-web-video-caster";
+} from "../src/index";
 
 // Example usage with full type support and new features
 class VideoPlayerService {
@@ -198,3 +198,95 @@ RNWebVideoCaster.isAppInstalled((isInstalled) => {
     );
   }
 });
+
+// Simple test case - let's start with basic functionality
+export const testBasicPlayback = async () => {
+  console.log("Testing basic playback...");
+
+  try {
+    // Test if app is installed first
+    RNWebVideoCaster.isAppInstalled((isInstalled: boolean) => {
+      console.log("Web Video Caster installed:", isInstalled);
+      if (!isInstalled) {
+        console.log("Web Video Caster is not installed!");
+        return;
+      }
+    });
+
+    // Very simple test - just URL and title
+    const simpleOptions: WebVideoCasterOptions = {
+      videoURL:
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      title: "Test Video - Big Buck Bunny",
+    };
+
+    console.log("Calling playVideo with simple options:", simpleOptions);
+    await RNWebVideoCaster.playVideo(simpleOptions);
+    console.log("playVideo call completed");
+  } catch (error) {
+    console.error("Error in testBasicPlayback:", error);
+  }
+};
+
+// Test with your complex options
+export const testComplexPlayback = async () => {
+  console.log("Testing complex playback...");
+
+  try {
+    // Your original options (fixed potential issues)
+    const options: WebVideoCasterOptions = {
+      videoURL:
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // Test URL
+      title: "Test Video - Big Buck Bunny",
+      posterURL:
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg",
+      headers: {
+        "User-Agent": "Umbrella/1.0",
+        Referer: "https://example.com",
+      },
+      hideVideoAddress: false,
+      position: 0,
+      filename: "big_buck_bunny.mp4",
+      suppressErrorMessage: false,
+      mimeType: "video/mp4", // Fixed - use proper MIME type
+    };
+
+    console.log("Calling playVideo with complex options:", options);
+    await RNWebVideoCaster.playVideo(options);
+    console.log("playVideo call completed");
+  } catch (error) {
+    console.error("Error in testComplexPlayback:", error);
+  }
+};
+
+// Debug your exact case
+export const testYourCase = async (media: any, item: any, index: number) => {
+  console.log("Testing your exact case...");
+
+  try {
+    const options: WebVideoCasterOptions = {
+      videoURL: media.url,
+      title: item.name + " - " + item.media[index].name,
+      posterURL: media.iconUrl,
+      headers: media.headers,
+      subtitles: media.subtitles,
+      hideVideoAddress: false,
+      position: 0,
+      filename: (item.name + " - " + item.media[index].name + ".mp4").replace(
+        /[^a-zA-Z0-9.-]/g,
+        "_"
+      ), // Cleaned filename
+      suppressErrorMessage: false,
+      mimeType: "video/*", // Simplified MIME type
+    };
+
+    console.log("Debug - Your options:", JSON.stringify(options, null, 2));
+    console.log("Debug - Video URL:", options.videoURL);
+    console.log("Debug - Headers:", options.headers);
+
+    await RNWebVideoCaster.playVideo(options);
+    console.log("playVideo call completed");
+  } catch (error) {
+    console.error("Error in testYourCase:", error);
+  }
+};
