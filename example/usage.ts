@@ -187,3 +187,14 @@ const success = videoService.castVideoWithValidation(advancedOptions);
 if (success) {
   console.log("Premium video casting initiated successfully");
 }
+
+// Debug: Check if Web Video Caster app is installed
+RNWebVideoCaster.isAppInstalled((isInstalled) => {
+  if (isInstalled) {
+    console.log("✅ Web Video Caster app is installed and ready to use");
+  } else {
+    console.log(
+      "❌ Web Video Caster app is not installed - will redirect to Play Store"
+    );
+  }
+});

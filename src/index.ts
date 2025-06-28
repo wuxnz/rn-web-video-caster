@@ -107,6 +107,12 @@ export interface RNWebVideoCasterInterface {
    * @deprecated Use playVideo() instead for access to new features
    */
   play(videoURL: string): void;
+
+  /**
+   * Check if the Web Video Caster app is installed on the device
+   * @param callback Callback function that receives a boolean indicating if the app is installed
+   */
+  isAppInstalled(callback: (isInstalled: boolean) => void): void;
 }
 
 const { RNWebVideoCaster } = NativeModules;

@@ -7,13 +7,63 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableArray
 import android.content.Intent
 import android.content.ActivityNotFoundException
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 
 class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
+    companion object {
+        private const val WEB_VIDEO_CASTER_PACKAGE = "com.instantbits.cast.webvideo"
+        private const val WEB_VIDEO_CASTER_ACTIVITY = "com.instantbits.cast.webvideo.VideoCasterReceiverActivity"
+    }
+
     override fun getName(): String {
         return "RNWebVideoCaster"
+    }
+
+    private fun isWebVideoCasterInstalled(): Boolean {
+        return try {
+            reactApplicationContext.packageManager.getPackageInfo(WEB_VIDEO_CASTER_PACKAGE, PackageManager.GET_ACTIVITIES)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    private fun createWebVideoCasterIntent(videoURL: String, mimeType: String? = null): Intent {
+        return Intent().apply {
+            action = Intent.ACTION_VIEW
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            setDataAndType(Uri.parse(videoURL), mimeType ?: "video/*")
+            setPackage(WEB_VIDEO_CASTER_PACKAGE)
+        }
+    }
+
+    private fun createWebVideoCasterIntentWithActivity(videoURL: String, mimeType: String? = null): Intent {
+        return Intent().apply {
+            action = Intent.ACTION_VIEW
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            setDataAndType(Uri.parse(videoURL), mimeType ?: "video/*")
+            setClassName(WEB_VIDEO_CASTER_PACKAGE, WEB_VIDEO_CASTER_ACTIVITY)
+        }
+    }
+
+    private fun openPlayStore() {
+        try {
+            val marketIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("market://details?id=$WEB_VIDEO_CASTER_PACKAGE")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            reactApplicationContext.startActivity(marketIntent)
+        } catch (e: ActivityNotFoundException) {
+            // Fallback to web browser if Play Store is not available
+            val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://play.google.com/store/apps/details?id=$WEB_VIDEO_CASTER_PACKAGE")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            reactApplicationContext.startActivity(webIntent)
+        }
     }
 
     @ReactMethod
@@ -23,11 +73,13 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             throw IllegalArgumentException("videoURL is required")
         }
 
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            setDataAndType(Uri.parse(videoURL), options.getString("mimeType") ?: "video/*")
-            setPackage("com.instantbits.cast.webvideo")
+        // Check if Web Video Caster is installed
+        if (!isWebVideoCasterInstalled()) {
+            openPlayStore()
+            return
         }
+
+        val intent = createWebVideoCasterIntent(videoURL, options.getString("mimeType"))
 
         // Add headers if provided
         if (options.hasKey("headers")) {
@@ -136,31 +188,48 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
         try {
             reactApplicationContext.startActivity(intent)
         } catch (ex: ActivityNotFoundException) {
-            val goToMarket = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("market://details?id=com.instantbits.cast.webvideo")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            // Try with specific activity class name as fallback
+            try {
+                val activityIntent = createWebVideoCasterIntentWithActivity(videoURL, options.getString("mimeType"))
+                // Copy all the extras from the original intent
+                activityIntent.putExtras(intent.extras ?: Bundle())
+                reactApplicationContext.startActivity(activityIntent)
+            } catch (ex2: ActivityNotFoundException) {
+                // If both approaches fail, open Play Store
+                openPlayStore()
             }
-            reactApplicationContext.startActivity(goToMarket)
         }
     }
 
     @ReactMethod
     fun play(videoURL: String) {
         // Backward compatibility method
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            setDataAndType(Uri.parse(videoURL), "video/*")
-            setPackage("com.instantbits.cast.webvideo")
+        
+        // Check if Web Video Caster is installed
+        if (!isWebVideoCasterInstalled()) {
+            openPlayStore()
+            return
         }
+
+        val intent = createWebVideoCasterIntent(videoURL)
 
         try {
             reactApplicationContext.startActivity(intent)
         } catch (ex: ActivityNotFoundException) {
-            val goToMarket = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("market://details?id=com.instantbits.cast.webvideo")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            // Try with specific activity class name as fallback
+            try {
+                val activityIntent = createWebVideoCasterIntentWithActivity(videoURL)
+                reactApplicationContext.startActivity(activityIntent)
+            } catch (ex2: ActivityNotFoundException) {
+                // If both approaches fail, open Play Store
+                openPlayStore()
             }
-            reactApplicationContext.startActivity(goToMarket)
         }
+    }
+
+    @ReactMethod
+    fun isAppInstalled(callback: com.facebook.react.bridge.Callback) {
+        val isInstalled = isWebVideoCasterInstalled()
+        callback.invoke(isInstalled)
     }
 } 
