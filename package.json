@@ -1,0 +1,43 @@
+{
+  "name": "rn-web-video-caster",
+  "version": "0.0.1",
+  "description": "Enhanced React Native module for Web Video Caster integration with TypeScript and advanced casting features",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "react-native",
+    "web video caster",
+    "react native",
+    "android",
+    "chrome cast",
+    "video casting",
+    "typescript",
+    "kotlin",
+    "streaming",
+    "subtitles",
+    "headers"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wuxnz/rn-web-video-caster"
+  },
+  "author": "wuxnz",
+  "license": "MIT",
+  "peerDependencies": {
+    "react-native": "^0.41.2"
+  },
+  "devDependencies": {
+    "@types/react-native": "^0.70.0",
+    "typescript": "^4.9.0"
+  },
+  "files": [
+    "lib",
+    "android",
+    "README.md"
+  ]
+}
