@@ -66,117 +66,139 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
             throw IllegalArgumentException("videoURL is required")
         }
 
+        // Create intent exactly like the working play() method
         val intent = createWebVideoCasterIntent(videoURL, options.getString("mimeType"))
-
-        // Add headers if provided - Web Video Caster expects JSON string format
-        if (options.hasKey("headers")) {
-            val headersMap = options.getMap("headers")
-            if (headersMap != null) {
-                // Convert to JSON string like the working SendIntentAndroid example
-                val headersJson = StringBuilder("{")
-                val iterator = headersMap.keySetIterator()
-                var first = true
-                while (iterator.hasNextKey()) {
-                    val key = iterator.nextKey()
-                    val value = headersMap.getString(key)
-                    if (value != null) {
-                        if (!first) headersJson.append(",")
-                        headersJson.append("\"$key\":\"$value\"")
-                        first = false
-                    }
-                }
-                headersJson.append("}")
-                
-                if (!first) { // Only add if we have headers
-                    intent.putExtra("headers", headersJson.toString())
-                }
-            }
-        }
-
-        // Add title if provided
-        if (options.hasKey("title")) {
-            intent.putExtra("title", options.getString("title"))
-        }
-
-        // Add poster URL if provided
-        if (options.hasKey("posterURL")) {
-            intent.putExtra("poster", options.getString("posterURL"))
-        }
-
-        // Add subtitles if provided - use official format (single subtitle)
-        if (options.hasKey("subtitles")) {
-            val subtitlesArray = options.getArray("subtitles")
-            if (subtitlesArray != null && subtitlesArray.size() > 0) {
-                val subtitle = subtitlesArray.getMap(0) // Use first subtitle as per official docs
-                if (subtitle != null) {
-                    val url = subtitle.getString("url")
-                    if (url != null) {
-                        intent.putExtra("subtitle", url)
-                    }
-                }
-            }
-        }
-
-        // Add position if provided
-        if (options.hasKey("position")) {
-            intent.putExtra("position", options.getInt("position"))
-        }
-
-        // Handle deprecated userAgent property for backward compatibility
-        if (options.hasKey("userAgent")) {
-            val userAgent = options.getString("userAgent")
-            if (userAgent != null) {
-                // Check if headers already exist and add User-Agent if not already present
-                val existingHeaders = intent.getStringExtra("headers")
-                if (existingHeaders != null) {
-                    // Parse existing JSON and add User-Agent if not present
-                    if (!existingHeaders.contains("User-Agent")) {
-                        val updatedHeaders = existingHeaders.dropLast(1) + ",\"User-Agent\":\"$userAgent\"}"
-                        intent.putExtra("headers", updatedHeaders)
-                    }
-                } else {
-                    // No existing headers, create new JSON with just User-Agent
-                    intent.putExtra("headers", "{\"User-Agent\":\"$userAgent\"}")
-                }
-            }
-        }
-
-        // Add file size if provided
-        if (options.hasKey("size")) {
-            intent.putExtra("size", options.getInt("size").toLong())
-        }
-
-        // Add filename if provided
-        if (options.hasKey("filename")) {
-            intent.putExtra("filename", options.getString("filename"))
-        }
-
-        // Add secure URI option (hide video address)
-        if (options.hasKey("hideVideoAddress") && options.getBoolean("hideVideoAddress")) {
-            intent.putExtra("secure_uri", true)
-        }
-
-        // Add suppress error message option
-        if (options.hasKey("suppressErrorMessage") && options.getBoolean("suppressErrorMessage")) {
-            intent.putExtra("suppress_error_message", true)
-        }
-
-        // Debug logging
-        Log.d("RNWebVideoCaster", "Attempting to launch Web Video Caster with intent:")
+        
+        // Debug logging - log the basic intent first
+        Log.d("RNWebVideoCaster", "Basic intent created successfully like play() method")
         Log.d("RNWebVideoCaster", "Package: ${intent.`package`}")
         Log.d("RNWebVideoCaster", "Data: ${intent.data}")
         Log.d("RNWebVideoCaster", "Type: ${intent.type}")
-        Log.d("RNWebVideoCaster", "Extras: ${intent.extras}")
-        
+
+        // Now add extras one by one, with safety checks
+        try {
+            // Add title if provided (most common and safe extra)
+            if (options.hasKey("title")) {
+                val title = options.getString("title")
+                if (title != null && title.isNotEmpty()) {
+                    intent.putExtra("title", title)
+                    Log.d("RNWebVideoCaster", "Added title: $title")
+                }
+            }
+
+            // Add headers using the format from your working SendIntentAndroid example
+            if (options.hasKey("headers")) {
+                val headersMap = options.getMap("headers")
+                if (headersMap != null) {
+                    val bundle = Bundle()
+                    val iterator = headersMap.keySetIterator()
+                    var hasHeaders = false
+                    while (iterator.hasNextKey()) {
+                        val key = iterator.nextKey()
+                        val value = headersMap.getString(key)
+                        if (value != null && value.isNotEmpty()) {
+                            bundle.putString(key, value)
+                            hasHeaders = true
+                            Log.d("RNWebVideoCaster", "Added header: $key = $value")
+                        }
+                    }
+                    
+                    if (hasHeaders) {
+                        intent.putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
+                        Log.d("RNWebVideoCaster", "Added HTTP headers bundle")
+                    }
+                }
+            }
+
+            // Handle deprecated userAgent property - add to headers bundle
+            if (options.hasKey("userAgent")) {
+                val userAgent = options.getString("userAgent")
+                if (userAgent != null && userAgent.isNotEmpty()) {
+                    val existingBundle = intent.getBundleExtra("android.media.intent.extra.HTTP_HEADERS")
+                    val headersBundle = existingBundle ?: Bundle()
+                    if (!headersBundle.containsKey("User-Agent")) {
+                        headersBundle.putString("User-Agent", userAgent)
+                        intent.putExtra("android.media.intent.extra.HTTP_HEADERS", headersBundle)
+                        Log.d("RNWebVideoCaster", "Added User-Agent from userAgent property: $userAgent")
+                    }
+                }
+            }
+
+            // Add poster URL if provided
+            if (options.hasKey("posterURL")) {
+                val posterURL = options.getString("posterURL")
+                if (posterURL != null && posterURL.isNotEmpty()) {
+                    intent.putExtra("poster", posterURL)
+                    Log.d("RNWebVideoCaster", "Added poster: $posterURL")
+                }
+            }
+
+            // Add position if provided and valid
+            if (options.hasKey("position")) {
+                val position = options.getInt("position")
+                if (position >= 0) {
+                    intent.putExtra("position", position)
+                    Log.d("RNWebVideoCaster", "Added position: $position")
+                }
+            }
+
+            // Add subtitles if provided - use first subtitle only
+            if (options.hasKey("subtitles")) {
+                val subtitlesArray = options.getArray("subtitles")
+                if (subtitlesArray != null && subtitlesArray.size() > 0) {
+                    val subtitle = subtitlesArray.getMap(0)
+                    if (subtitle != null) {
+                        val url = subtitle.getString("url")
+                        if (url != null && url.isNotEmpty()) {
+                            intent.putExtra("subtitle", url)
+                            Log.d("RNWebVideoCaster", "Added subtitle: $url")
+                        }
+                    }
+                }
+            }
+
+            // Add filename if provided and clean
+            if (options.hasKey("filename")) {
+                val filename = options.getString("filename")
+                if (filename != null && filename.isNotEmpty()) {
+                    intent.putExtra("filename", filename)
+                    Log.d("RNWebVideoCaster", "Added filename: $filename")
+                }
+            }
+
+            // Add boolean options only if explicitly true
+            if (options.hasKey("hideVideoAddress") && options.getBoolean("hideVideoAddress")) {
+                intent.putExtra("secure_uri", true)
+                Log.d("RNWebVideoCaster", "Added secure_uri: true")
+            }
+
+            if (options.hasKey("suppressErrorMessage") && options.getBoolean("suppressErrorMessage")) {
+                intent.putExtra("suppress_error_message", true)
+                Log.d("RNWebVideoCaster", "Added suppress_error_message: true")
+            }
+
+            // Add file size if provided and valid
+            if (options.hasKey("size")) {
+                val size = options.getInt("size")
+                if (size > 0) {
+                    intent.putExtra("size", size.toLong())
+                    Log.d("RNWebVideoCaster", "Added size: $size")
+                }
+            }
+
+            Log.d("RNWebVideoCaster", "All extras added successfully, launching...")
+            
+        } catch (ex: Exception) {
+            Log.e("RNWebVideoCaster", "Error adding extras to intent", ex)
+            // Continue with basic intent like play() method does
+        }
+
+        // Launch exactly like the working play() method
         try {
             reactApplicationContext.startActivity(intent)
             Log.d("RNWebVideoCaster", "Successfully launched Web Video Caster")
         } catch (ex: ActivityNotFoundException) {
             Log.e("RNWebVideoCaster", "Web Video Caster not found, opening Play Store", ex)
-            // Open Play Store if it fails to launch the app because the package doesn't exist
-            openPlayStore()
-        } catch (ex: Exception) {
-            Log.e("RNWebVideoCaster", "Unexpected error launching Web Video Caster", ex)
             openPlayStore()
         }
     }
