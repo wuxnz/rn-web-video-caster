@@ -86,42 +86,50 @@ class RNWebVideoCasterModule(reactContext: ReactApplicationContext) : ReactConte
                 }
             }
 
-            // Add headers using the format from your working SendIntentAndroid example
+            // Add headers using the string array format that Web Video Caster expects
+            val headersList = mutableListOf<String>()
+            
             if (options.hasKey("headers")) {
                 val headersMap = options.getMap("headers")
                 if (headersMap != null) {
-                    val bundle = Bundle()
                     val iterator = headersMap.keySetIterator()
-                    var hasHeaders = false
                     while (iterator.hasNextKey()) {
                         val key = iterator.nextKey()
                         val value = headersMap.getString(key)
                         if (value != null && value.isNotEmpty()) {
-                            bundle.putString(key, value)
-                            hasHeaders = true
+                            headersList.add(key)
+                            headersList.add(value)
                             Log.d("RNWebVideoCaster", "Added header: $key = $value")
                         }
-                    }
-                    
-                    if (hasHeaders) {
-                        intent.putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
-                        Log.d("RNWebVideoCaster", "Added HTTP headers bundle")
                     }
                 }
             }
 
-            // Handle deprecated userAgent property - add to headers bundle
+            // Handle deprecated userAgent property - add to headers array
             if (options.hasKey("userAgent")) {
                 val userAgent = options.getString("userAgent")
                 if (userAgent != null && userAgent.isNotEmpty()) {
-                    val existingBundle = intent.getBundleExtra("android.media.intent.extra.HTTP_HEADERS")
-                    val headersBundle = existingBundle ?: Bundle()
-                    if (!headersBundle.containsKey("User-Agent")) {
-                        headersBundle.putString("User-Agent", userAgent)
-                        intent.putExtra("android.media.intent.extra.HTTP_HEADERS", headersBundle)
+                    // Check if User-Agent is not already in the headers list
+                    var userAgentExists = false
+                    for (i in 0 until headersList.size step 2) {
+                        if (headersList[i] == "User-Agent") {
+                            userAgentExists = true
+                            break
+                        }
+                    }
+                    if (!userAgentExists) {
+                        headersList.add("User-Agent")
+                        headersList.add(userAgent)
                         Log.d("RNWebVideoCaster", "Added User-Agent from userAgent property: $userAgent")
                     }
                 }
+            }
+            
+            // Add headers array to intent if we have any headers
+            if (headersList.isNotEmpty()) {
+                val headersArray = headersList.toTypedArray()
+                intent.putExtra("headers", headersArray)
+                Log.d("RNWebVideoCaster", "Added headers array with ${headersList.size / 2} header pairs")
             }
 
             // Add poster URL if provided
